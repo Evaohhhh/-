@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html html lang="zh">
+  <head>
+    <meta charset="UTF-8"> 
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>爱丁堡利手测验</title>
+    <script src="https://unpkg.com/jspsych@7.3.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.1"></script>
+    <link href="https://unpkg.com/jspsych@7.3.0/css/jspsych.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+  </body>
+  <script>
+    /* initialize jsPsych */
+    var jsPsych = initJsPsych({
+      on_finish: function() {
+        jsPsych.endExperiment('实验结束，谢谢参与');
+        // jsPsych.data.displayData();  //打印数据
+      }
+    });
+
+    var timeline = [];
+
+    var left = 0;  //左手分数
+    var right = 0;  //右手分数
+
+    var welcome = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: "欢迎来到爱丁堡利手实验测试，按下任意按键实验开始.",
+      data: {
+        task: 'introduction'
+      },
+    };
+    timeline.push(welcome);
+
+    var instructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <p>请描述您在以下具体活动中更倾向于用哪一只手</p>
+        <p style="color:blue">倾向于用左手请按 1 当这种倾向很强，也就是说，除非被强迫，您从来不用另一只手，请按 2</p>
+        <p style="color:red">倾向于用右手请按 9 当这种倾向很强，也就是说，除非被强迫，您从来不用另一只手，请按 0</p>
+        <p style="color:green">如果您觉得两只手都可以，没有什么区别，请按 Enter 键</p>
+        <p>按下任意按键实验开始</p>
+      `,
+      post_trial_gap: 1000,
+      data: {
+        task: 'introduction'
+      },
+    };
+    timeline.push(instructions);
+
+    var fixation = {
+      type: jsPsychHtmlKeyboardResponse,
+      timeline: [ {stimulus: jsPsych.timelineVariable('content'), choices: ['1','2','9','0','Enter']}],
+      timeline_variables:[
+        { content: '写字', id:'1'},
+        { content: '画画', id:'2'},
+        { content: '扔东西', id:'3'},
+        { content: '剪东西', id:'4'},
+        { content: '刷牙', id:'5'},
+        { content: '用刀（不包括叉子）', id:'6'},
+        { content: '用勺子', id:'7'},
+        { content: '用扫帚扫地（放在上边的是哪只手）', id:'8'},
+        { content: '点火柴（拿火柴的手）', id:'9'},
+        { content: '开盖子（打开盖子的手）', id:'10'},
+      ],
+      post_trial_gap: 500,
+      data: {
+        task: 'fixation'
+      },
+
+      on_finish: function(data){
+        if(data.response === '1' || data.response === '9'){
+          left += 1;
+        }
+        else if(data.response === '2' || data.response === '0'){
+          right += 2;
+        }
+        else {
+          left += 1;
+          right += 1;
+        }
+      }
+    };
+
+    var debrief_block = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() {
+        var final = (right-left)/(right+left)*100;
+        final = final.toFixed(2);  //保留两位小数点
+        // 根据标准进行判断。
+        if(Math.sign(final) == -1 && Math.abs(final) >= 40){
+          return `<p>您的最终得分为${final}, 是左利手</p>`;
+        }
+        else if(Math.abs(final)<=40){
+          return `<p>您的最终得分为${final}, 是双利手</p>`;
+        }
+        else{
+          return `<p>您的最终得分为${final}, 是右利手</p>`;
+        }
+      },
+      prompt: function() {
+        //获取特定项的数据
+        var str = jsPsych.data.get().filterColumns(['stimulus', 'response', 'task']);
+        //过滤
+        str = str.trials.filter(data => data.task === 'fixation')
+
+        //转化左右手收据
+        var handsList = str.map((t) => {
+          if(t.response === '1' || t.response === '2') {
+            return '左手'
+          }
+          else if(t.response === '9' || t.response === '0'){
+            return '右手';
+          }
+          else {
+            return '双手';
+          }
+        })
+
+        //得分渲染
+        var scoreList = str.map((t) => {
+          if(t.response === '1' || t.response === '9') {
+            return '1'
+          }
+          else if(t.response === '2' || t.response === '0'){
+            return '2';
+          }
+          else{
+            return '1';
+          }
+        })
+
+        // 把被试的每项数据信息通过表格打印出来
+        var tableHtml = `<table cellpadding="0" border="1"> <tr role="row"> <th>项目</th><th>左右手</th><th>得分</th></tr>`;
+        str.map ((item,index) => {
+          var list = `<tr role="row"> <th>`+ item.stimulus + `</th><th>` + handsList[index] + `</th><th>` + scoreList[index] + `</th> </tr>`
+          tableHtml = tableHtml + list;
+        })
+        tableHtml = tableHtml + `</table>`
+
+        return tableHtml
+       
+      }
+    };
+
+    timeline.push(fixation);
+    timeline.push(debrief_block);
+
+    /* start the experiment */
+    jsPsych.run(timeline);
+
+  </script>
+</html>
